@@ -1,0 +1,44 @@
+package com.glasslauncher.tv.data
+
+import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.security.MessageDigest
+import java.net.URL
+import java.net.HttpURLConnection
+
+/** Small JSON-over-HTTP helper with an on-disk cache that also serves as an offline fallback. */
+class Http(ctx: Context) {
+    private val dir = File(ctx.cacheDir, "api-cache").apply { mkdirs() }
+
+    private fun key(url: String) =
+        MessageDigest.getInstance("SHA-256").digest(url.toByteArray()).joinToString("") { "%02x".format(it) }
+
+    fun text(url: String, ttlMs: Long, bearer: String? = null): String {
+        val f = File(dir, key(url) + ".json")
+        if (f.exists() && System.currentTimeMillis() - f.lastModified() < ttlMs) {
+            runCatching { return f.readText() }
+        }
+        try {
+            val c = URL(url).openConnection() as HttpURLConnection
+            c.connectTimeout = 8000; c.readTimeout = 12000
+            c.setRequestProperty("Accept", "application/json")
+            c.setRequestProperty("User-Agent", "GlassLauncher/1.0")
+            if (bearer != null) c.setRequestProperty("Authorization", "Bearer $bearer")
+            try {
+                if (c.responseCode !in 200..299) throw IllegalStateException("HTTP ${c.responseCode}")
+                val body = c.inputStream.bufferedReader().use { it.readText() }
+                runCatching { f.writeText(body) }
+                return body
+            } finally { c.disconnect() }
+        } catch (e: Exception) {
+            if (f.exists()) runCatching { return f.readText() }
+            throw e
+        }
+    }
+
+    fun json(url: String, ttlMs: Long, bearer: String? = null) = JSONObject(text(url, ttlMs, bearer))
+    fun jsonArray(url: String, ttlMs: Long = 0) = JSONArray(text(url, ttlMs))
+
+}
