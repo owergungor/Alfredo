@@ -40,6 +40,13 @@ class Settings(private val ctx: Context) {
      * What this TV can carry, from its memory and GPU: 2 GB / GLES 2 boxes get "performance",
      * ~4 GB boxes (Google TV Streamer, Shield) "balanced", bigger ones "quality".
      */
+    fun isLowRam(): Boolean {
+        val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        val mi = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+        val gb = mi.totalMem / (1024.0 * 1024 * 1024)
+        return am.isLowRamDevice || gb < 2.0
+    }
+
     fun deviceTier(): String {
         val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
         val mi = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
@@ -87,11 +94,19 @@ class Settings(private val ctx: Context) {
             "quality" -> { imageQuality = "max"; prefetchDepth = 6; transitionMs = 700; refraction = 14; heroGallery = true; galleryShots = 3; glassRes = 720
                 pageScale = 1f; memTier = 2 }
         }
+        if (isLowRam()) {
+            if (memTier > 1) memTier = 1
+            if (pageScale > 0.667f) pageScale = 0.667f
+            if (prefetchDepth > 2) prefetchDepth = 2
+            heroGallery = false
+            if (glassRes > 480) glassRes = 480
+            refraction = 0
+        }
         perfMode = m
     }
 
     /** Apple TV style: each title shows a few of its backdrops before the carousel moves on. */
-    var heroGallery: Boolean get() = b("heroGallery", true); set(v) = putB("heroGallery", v)
+    var heroGallery: Boolean get() = b("heroGallery", false); set(v) = putB("heroGallery", v)
     var galleryShots: Int get() = i("galleryShots", 3); set(v) = putI("galleryShots", v.coerceIn(2, 6))
     var heroIntervalSec: Int get() = i("heroIntervalSec", 6); set(v) = putI("heroIntervalSec", v.coerceIn(3, 60))
     /** logo | text | hidden */

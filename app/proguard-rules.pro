@@ -4,7 +4,6 @@
 -dontwarn org.openjsse.**
 -dontwarn javax.annotation.**
 -keep class com.glasslauncher.tv.HomeKeyService { *; }
--keep class com.glasslauncher.tv.saver.GlassDreamService { *; }
 -keepattributes *Annotation*
 -dontwarn org.bouncycastle.**
 -dontwarn javax.naming.**
