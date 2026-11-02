@@ -1,6 +1,6 @@
-# Contributing to Glassio
+# Contributing to Alfredo
 
-Thank you for your interest in improving Glassio, an Apple TV-style home screen for Google TV and Android TV.
+Thank you for your interest in improving Alfredo, an Apple TV-style home screen for Google TV and Android TV.
 
 ## Core product principle: customization first
 
@@ -28,7 +28,7 @@ Changes whose purpose is strictly to improve performance, speed, memory usage, s
 
 ## Suggested workflow
 
-1. Fork `mohammadmrh12/glassio`.
+1. Fork `owergungor/alfredo`.
 2. Create a branch for your change, for example `fix/poster-focus-shadow` or `feat/backup-restore`.
 3. Make the change and keep the code consistent with the surrounding project.
 4. Run the relevant build, tests, and checks available in the repository.

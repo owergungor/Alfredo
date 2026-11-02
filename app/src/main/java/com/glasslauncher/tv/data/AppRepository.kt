@@ -12,18 +12,33 @@ import android.graphics.drawable.Drawable
 import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 
 data class AppEntry(val pkg: String, val label: String, val component: ComponentName, val leanback: Boolean)
 
 data class Art(val bmp: ImageBitmap, val transparent: Boolean, val light: Boolean = false, val onLight: ImageBitmap = bmp)
 
-class AppRepository(private val ctx: Context, private val settings: Settings, private val packs: IconPacks, private val icons: IconStore) {
+class AppRepository(
+    private val ctx: Context,
+    private val settings: Settings,
+    private val packs: IconPacks,
+    private val icons: IconStore,
+    private val scope: CoroutineScope,
+) {
     private val pm: PackageManager = ctx.packageManager
-    private val _apps = MutableStateFlow<List<AppEntry>>(emptyList())
+    private val scanMutex = Mutex()
+    private val pendingScan = AtomicBoolean(false)
+    val initialScanDone = CompletableDeferred<Unit>()
+
+    private val _apps = MutableStateFlow<List<AppEntry>>(loadCache())
     val apps: StateFlow<List<AppEntry>> = _apps
 
     private val preferred = listOf(
@@ -37,6 +52,33 @@ class AppRepository(private val ctx: Context, private val settings: Settings, pr
         override fun onReceive(c: Context?, i: Intent?) { reload() }
     }
 
+    private fun loadCache(): List<AppEntry> = runCatching {
+        val sp = ctx.getSharedPreferences("glass_app_cache", Context.MODE_PRIVATE)
+        val raw = sp.getString("apps", null)?.takeIf { it.isNotBlank() } ?: return emptyList()
+        raw.lines().filter { it.isNotBlank() }.mapNotNull { line ->
+            val parts = line.split('\t')
+            if (parts.size >= 4 && parts[0].isNotBlank()) {
+                val pkg = parts[0]
+                val label = parts[1]
+                val comp = ComponentName.unflattenFromString(parts[2]) ?: return@mapNotNull null
+                val leanback = parts[3].toBoolean()
+                AppEntry(pkg, label, comp, leanback)
+            } else null
+        }
+    }.getOrDefault(emptyList())
+
+    private fun saveCache(list: List<AppEntry>) = runCatching {
+        val sp = ctx.getSharedPreferences("glass_app_cache", Context.MODE_PRIVATE)
+        if (list.isEmpty()) {
+            sp.edit().remove("apps").apply()
+        } else {
+            val raw = list.joinToString("\n") { e ->
+                "${e.pkg}\t${e.label}\t${e.component.flattenToString()}\t${e.leanback}"
+            }
+            sp.edit().putString("apps", raw).apply()
+        }
+    }
+
     fun start() {
         reload()
         val f = IntentFilter().apply {
@@ -47,20 +89,43 @@ class AppRepository(private val ctx: Context, private val settings: Settings, pr
     }
 
     fun reload() {
-        val found = linkedMapOf<String, AppEntry>()
-        fun scan(category: String, leanback: Boolean) {
-            val intent = Intent(Intent.ACTION_MAIN).addCategory(category)
-            for (ri in pm.queryIntentActivities(intent, 0)) {
-                val ai = ri.activityInfo ?: continue
-                if (ai.packageName == ctx.packageName) continue
-                if (found.containsKey(ai.packageName)) continue
-                val label = runCatching { ri.loadLabel(pm).toString() }.getOrDefault("").ifBlank { ai.packageName.substringAfterLast('.') }
-                found[ai.packageName] = AppEntry(ai.packageName, label, ComponentName(ai.packageName, ai.name), leanback)
+        pendingScan.set(true)
+        scope.launch(Dispatchers.IO) {
+            if (!scanMutex.tryLock()) return@launch
+            try {
+                while (pendingScan.getAndSet(false)) {
+                    doScan()
+                }
+            } finally {
+                scanMutex.unlock()
             }
         }
-        scan(Intent.CATEGORY_LEANBACK_LAUNCHER, true)
-        scan(Intent.CATEGORY_LAUNCHER, false)
-        _apps.value = found.values.toList()
+    }
+
+    private suspend fun doScan() {
+        runCatching {
+            val found = linkedMapOf<String, AppEntry>()
+            fun scan(category: String, leanback: Boolean) {
+                val intent = Intent(Intent.ACTION_MAIN).addCategory(category)
+                for (ri in pm.queryIntentActivities(intent, 0)) {
+                    val ai = ri.activityInfo ?: continue
+                    if (ai.packageName == ctx.packageName) continue
+                    if (found.containsKey(ai.packageName)) continue
+                    val label = runCatching { ri.loadLabel(pm).toString() }.getOrDefault("").ifBlank { ai.packageName.substringAfterLast('.') }
+                    found[ai.packageName] = AppEntry(ai.packageName, label, ComponentName(ai.packageName, ai.name), leanback)
+                }
+            }
+            scan(Intent.CATEGORY_LEANBACK_LAUNCHER, true)
+            scan(Intent.CATEGORY_LAUNCHER, false)
+            val list = found.values.toList()
+            saveCache(list)
+            withContext(Dispatchers.Main) {
+                _apps.value = list
+            }
+        }.onFailure { Glog.w("AppRepository scan failed", it) }
+        if (!initialScanDone.isCompleted) {
+            initialScanDone.complete(Unit)
+        }
     }
 
     /** Apps in the user's saved order, hidden ones removed unless [includeHidden]. */

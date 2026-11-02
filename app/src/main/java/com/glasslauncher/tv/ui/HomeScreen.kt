@@ -291,6 +291,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         if (!first && next != null) mix.snapTo(0f)
         shownBackdrop = baked
         shownUrl.value = u
+        com.glasslauncher.tv.data.StartupTracker.onBackgroundReady()
         try {
             if (first || next == null) mix.snapTo(1f)
             else mix.animateTo(1f, tween(fadeMs, easing = when {
@@ -372,7 +373,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         )
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF110E26), Color(0xFF3A1B52), Color(0xFF0D1A3A))))) {
         val density = LocalDensity.current
         val rootW = with(density) { maxWidth.roundToPx() }
         val rootH = with(density) { maxHeight.roundToPx() }
@@ -464,11 +465,38 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             }
 
             // Fully covered by settings or the folder: stop drawing it at all.
-            val homeAlphaState = animateFloatAsState(if (screen == Screen.Home && !folderOpen) 1f else 0f, tween(180), label = "homeAlpha")
+            // Background-First Startup: background is presented cleanly first, then foreground UI stages in
+            var uiRevealed by remember { mutableStateOf(shownBackdrop != null) }
+
+            LaunchedEffect(shownBackdrop) {
+                if (shownBackdrop != null && !uiRevealed) {
+                    com.glasslauncher.tv.data.StartupTracker.onBackgroundReady()
+                    kotlinx.coroutines.delay(60)
+                    uiRevealed = true
+                }
+            }
+
+            LaunchedEffect(Unit) {
+                kotlinx.coroutines.delay(600)
+                if (!uiRevealed) {
+                    com.glasslauncher.tv.data.StartupTracker.onBackgroundReady()
+                    uiRevealed = true
+                }
+            }
+
+            LaunchedEffect(uiRevealed) {
+                if (uiRevealed) {
+                    kotlinx.coroutines.delay(80)
+                    com.glasslauncher.tv.data.StartupTracker.onUiReady()
+                }
+            }
+
+            val shouldShowHome = screen == Screen.Home && !folderOpen && uiRevealed
+            val homeAlphaState = animateFloatAsState(if (shouldShowHome) 1f else 0f, tween(if (uiRevealed) 240 else 180), label = "homeAlpha")
             val homeVisible by remember { androidx.compose.runtime.derivedStateOf { homeAlphaState.value > 0.001f } }
-            if (homeVisible || (screen == Screen.Home && !folderOpen)) Box(
+            if (homeVisible || shouldShowHome) Box(
                 Modifier.fillMaxSize().graphicsLayer { alpha = homeAlphaState.value }
-                    .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen }
+                    .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen && uiRevealed }
             ) {
                 Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (DebugHide.intValue and 2 != 0) 0f else 1f }) {
                     // Oversized liquid-glass clock sits behind the hero and app dock, so the home remains
@@ -1043,7 +1071,7 @@ private fun EmptyHint(
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, spring(0.6f, 450f), label = "hintBtn")
     Column(modifier.padding(start = (56 * s).dp, top = (130 * s).dp).widthIn(max = (480 * s).dp)) {
-        Text(tr("Glassio"), color = Color.White, fontSize = (30 * s).sp, fontWeight = FontWeight.Light, letterSpacing = 4.sp)
+        Text(tr("Alfredo"), color = Color.White, fontSize = (30 * s).sp, fontWeight = FontWeight.Light, letterSpacing = 4.sp)
         Spacer(Modifier.height((10 * s).dp))
         Text(tr(if (status.isBlank()) "Loading…" else status), color = Color.White.copy(alpha = 0.7f), fontSize = (14 * s).sp)
         Spacer(Modifier.height((6 * s).dp))
@@ -1411,7 +1439,7 @@ fun UpdateBanner(app: GlassApp, s: Float, modifier: Modifier) {
     AnimatedVisibility((visible || pill || status.isNotBlank()) && r != null, modifier, enter = fadeIn(tween(250)), exit = fadeOut(tween(300))) {
         GlassPanel(Modifier.padding(top = (54 * s).dp).width((300 * s).dp), (16 * s).dp, style = app.settings.panelStyle, darken = 0.55f) {
             Column(Modifier.padding(horizontal = (16 * s).dp, vertical = (11 * s).dp)) {
-                Text(tr("Glassio ${r?.version}"), color = Color.White, fontSize = (12.5f * s).sp, fontWeight = FontWeight.SemiBold)
+                Text(tr("Alfredo ${r?.version}"), color = Color.White, fontSize = (12.5f * s).sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height((5 * s).dp))
                 noteLines(r?.notes.orEmpty()).forEach {
                     Text(tr("·  $it"), color = AppleSecondary, fontSize = (10 * s).sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)

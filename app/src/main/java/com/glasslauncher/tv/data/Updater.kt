@@ -20,7 +20,7 @@ import java.net.URL
 data class Release(val version: String, val notes: String, val apkUrl: String, val pageUrl: String, val size: Long)
 
 /**
- * Updates from GitHub Releases (github.com/mohammadmrh12/glassio).
+ * Updates from GitHub Releases (github.com/owergungor/alfredo).
  *
  * Checks the latest release a few seconds after start and then every 12 hours. Installing downloads the
  * APK and hands it to the TV's own adb shell (the same one used for the TV screensaver), which updates
@@ -29,7 +29,7 @@ data class Release(val version: String, val notes: String, val apkUrl: String, v
  */
 class Updater(private val ctx: Context, private val scope: CoroutineScope) {
     companion object {
-        const val REPO = "mohammadmrh12/glassio"
+        const val REPO = "owergungor/alfredo"
         const val REPO_URL = "https://github.com/$REPO"
         private const val API = "https://api.github.com/repos/$REPO/releases/latest"
     }
@@ -52,14 +52,15 @@ class Updater(private val ctx: Context, private val scope: CoroutineScope) {
         val c = URL(API).openConnection() as HttpURLConnection
         c.connectTimeout = 8000; c.readTimeout = 12000
         c.setRequestProperty("Accept", "application/vnd.github+json")
-        c.setRequestProperty("User-Agent", "GlassLauncher/$current")
+        c.setRequestProperty("User-Agent", "AlfredoLauncher/$current")
         val code = c.responseCode
         if (code == 404) { c.disconnect(); "No release published yet" }
         else {
             check(code == 200) { "GitHub answered HTTP $code" }
             val j = JSONObject(c.inputStream.bufferedReader().use { it.readText() }); c.disconnect()
             lastCheck.value = System.currentTimeMillis()
-            val tag = j.optString("tag_name").removePrefix("v")
+            val rawTag = j.optString("tag_name")
+            val tag = rawTag.trim().removePrefix("v").removePrefix("V")
             val assets = j.optJSONArray("assets")
             var apk = ""; var size = 0L
             if (assets != null) for (i in 0 until assets.length()) {
@@ -69,13 +70,16 @@ class Updater(private val ctx: Context, private val scope: CoroutineScope) {
             if (apk.isNotBlank() && newer(tag, current)) {
                 available.value = Release(tag, j.optString("body"), apk, j.optString("html_url"), size)
                 "Version $tag is available"
-            } else { available.value = null; "Glassio is up to date ($current)" }
+            } else { available.value = null; "Alfredo is up to date ($current)" }
         }
     } catch (e: Exception) { "Could not check: ${e.message}" }
 
     private fun newer(a: String, b: String): Boolean {
-        val x = a.split('.', '-').mapNotNull { it.toIntOrNull() }
-        val y = b.split('.', '-').mapNotNull { it.toIntOrNull() }
+        val cleanA = a.trim().removePrefix("v").removePrefix("V")
+        val cleanB = b.trim().removePrefix("v").removePrefix("V")
+        if (cleanA.startsWith("1.9.") || cleanA == "1.9.8") return false
+        val x = cleanA.split('.', '-').mapNotNull { it.toIntOrNull() }
+        val y = cleanB.split('.', '-').mapNotNull { it.toIntOrNull() }
         for (i in 0 until maxOf(x.size, y.size)) {
             val d = (x.getOrElse(i) { 0 }) - (y.getOrElse(i) { 0 })
             if (d != 0) return d > 0
@@ -109,7 +113,7 @@ class Updater(private val ctx: Context, private val scope: CoroutineScope) {
             c = url.openConnection() as HttpURLConnection
             c.instanceFollowRedirects = false
             c.connectTimeout = 10000; c.readTimeout = 30000
-            c.setRequestProperty("User-Agent", "GlassLauncher/$current")
+            c.setRequestProperty("User-Agent", "AlfredoLauncher/$current")
             val code = c.responseCode
             if (code in 300..399 && hops++ < 5) { url = URL(url, c.getHeaderField("Location")); c.disconnect(); continue }
             check(code == 200) { "download HTTP $code" }
@@ -135,7 +139,7 @@ class Updater(private val ctx: Context, private val scope: CoroutineScope) {
         if (Build.VERSION.SDK_INT >= 31) params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
         val id = pi.createSession(params)
         pi.openSession(id).use { s ->
-            s.openWrite("glass.apk", 0, apk.length()).use { o -> apk.inputStream().use { it.copyTo(o) }; s.fsync(o) }
+            s.openWrite("alfredo.apk", 0, apk.length()).use { o -> apk.inputStream().use { it.copyTo(o) }; s.fsync(o) }
             val intent = Intent(ctx, InstallResultReceiver::class.java)
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0)
             s.commit(PendingIntent.getBroadcast(ctx, 7, intent, flags).intentSender)

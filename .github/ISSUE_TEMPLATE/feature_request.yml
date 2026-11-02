@@ -1,5 +1,5 @@
 name: Feature request
-description: An idea for Glassio
+description: An idea for Alfredo
 labels: ["enhancement"]
 body:
   - type: textarea

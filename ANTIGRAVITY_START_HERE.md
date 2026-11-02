@@ -7,7 +7,7 @@ Continue developing this existing Glassio project directly. Do not create a repl
 Before editing any files:
 1. Read `README.md`, `app/build.gradle.kts`, root `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`, and `gradle/wrapper/gradle-wrapper.properties`.
 2. Map the Kotlin source tree, Android manifest, resources/assets, and existing build/test scripts.
-3. Identify the current app identity and compatibility: namespace `com.glasslauncher.tv`, applicationId `com.glasslauncher.tv.devtest`, minSdk 26, targetSdk 35, versionName 1.9.8 (verify against files).
+3. Identify the current app identity and compatibility: namespace `com.glasslauncher.tv`, applicationId `com.glasslauncher.tv.devtest`, minSdk 26, targetSdk 35, versionName 1.0 (versionCode 31) (verify against files).
 4. Summarize architecture, screens, settings persistence, services, permissions, integrations, and build requirements.
 5. Run a local debug build only if Android SDK/JDK/dependencies are already configured and the user has authorized the build. Do not install or launch the APK on any device.
 6. Report build blockers separately from source-code issues.

@@ -20,4 +20,4 @@ The maintainer will review the report and, when possible, respond with an acknow
 
 ## Scope
 
-Report security issues that affect Glassio or code maintained in this repository. For vulnerabilities in third-party services or dependencies, use the relevant project's security reporting process as well.
+Report security issues that affect Alfredo or code maintained in this repository. For vulnerabilities in third-party services or dependencies, use the relevant project's security reporting process as well.

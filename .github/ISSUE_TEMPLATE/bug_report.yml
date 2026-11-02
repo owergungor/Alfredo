@@ -5,9 +5,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: Glassio version
+      label: Alfredo version
       description: "Settings → About"
-      placeholder: "1.9.5"
+      placeholder: "1.0"
     validations:
       required: true
   - type: input

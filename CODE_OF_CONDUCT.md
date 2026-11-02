@@ -2,7 +2,7 @@
 
 ## Our commitment
 
-The Glassio project aims to provide a welcoming, respectful environment for everyone who participates, regardless of experience level, background, identity, or viewpoint.
+The Alfredo project aims to provide a welcoming, respectful environment for everyone who participates, regardless of experience level, background, identity, or viewpoint.
 
 ## Expected behavior
 

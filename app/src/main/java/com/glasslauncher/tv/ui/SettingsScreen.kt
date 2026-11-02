@@ -1,5 +1,11 @@
 package com.glasslauncher.tv.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings as AndroidSettings
@@ -116,6 +122,51 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     val ctx = LocalContext.current
     val st = app.settings
     val scope = rememberCoroutineScope()
+
+    val storagePermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            scope.launch(Dispatchers.IO) {
+                toast(ctx, tr("Exporting backup…"))
+                val res = com.glasslauncher.tv.data.BackupManager.exportBackup(ctx)
+                when (res) {
+                    is com.glasslauncher.tv.data.BackupManager.BackupResult.Success -> {
+                        toast(ctx, "Exported: ${res.file.name}\nSHA-256: ${res.sha256.take(12)}…")
+                    }
+                    is com.glasslauncher.tv.data.BackupManager.BackupResult.Error -> {
+                        toast(ctx, "Export failed: ${res.message}")
+                    }
+                }
+            }
+        } else {
+            toast(ctx, tr("Storage permission denied. Cannot export backup to Downloads."))
+        }
+    }
+
+    val restorePermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            scope.launch(Dispatchers.IO) {
+                val file = com.glasslauncher.tv.data.BackupManager.getPreferredBackupFile(ctx)
+                if (!file.exists()) {
+                    toast(ctx, "Backup file not found in Downloads: ${file.name}")
+                    return@launch
+                }
+                toast(ctx, tr("Restoring backup…"))
+                val res = com.glasslauncher.tv.data.BackupManager.importBackup(ctx, file)
+                when (res) {
+                    is com.glasslauncher.tv.data.BackupManager.BackupResult.Success -> {
+                        toast(ctx, tr("Backup restored! Reloading…"))
+                        st.reload()
+                        app.apps.reload()
+                    }
+                    is com.glasslauncher.tv.data.BackupManager.BackupResult.Error -> {
+                        toast(ctx, "Restore failed: ${res.message}")
+                    }
+                }
+            }
+        } else {
+            toast(ctx, tr("Storage permission denied. Cannot read backup file."))
+        }
+    }
     val traktCode by app.cw.traktCode.collectAsState()
     val tvRev = remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var homeKeyOn by remember { mutableStateOf(isHomeKeyOn(ctx)) }
@@ -182,7 +233,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Dots per group", "", { "${st.dotsMax}" }, { st.dotsMax += it }),
                 Adjust("Total titles", "0 = every title, endless loop", { if (st.maxItems == 0) "Unlimited" else "${st.maxItems}" }, { st.maxItems = (st.maxItems + it * 10).coerceAtLeast(0) }),
                 Adjust("Pictures per title", "", { "${st.galleryShots}" }, { st.galleryShots = (st.galleryShots + it).coerceIn(2, 6) }),
-                Note("One title: on the carousel hold OK (or press Menu) to switch to its next picture. Glassio remembers it."),
+                Note("One title: on the carousel hold OK (or press Menu) to switch to its next picture. Alfredo remembers it."),
                 Act("Reset pictures picked per title", "", "") { st.clearArtPicks(); toast(ctx, "Every title is back to the Artwork setting") },
             )
         },
@@ -227,7 +278,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Theme", "One look for the dock, the icons and the menu. Black ones keep the dock clear (matte)",
                     { if (st.theme.isBlank()) "Custom" else themeName(st.theme) },
                     { st.applyTheme(cycle(listOf("bow", "amoled", "liquid", "clear", "water_still", "water"), st.theme.ifBlank { "liquid" }, it)) }),
-                Adjust("UI font", "Changes the typeface throughout Glassio, including the clock and date", { if (st.uiFont == "apple") "Apple-style (Inter)" else "System" },
+                Adjust("UI font", "Changes the typeface throughout Alfredo, including the clock and date", { if (st.uiFont == "apple") "Apple-style (Inter)" else "System" },
                     { st.uiFont = cycle(listOf("apple", "system"), st.uiFont, it) }),
                 Adjust("Settings background", "Behind settings and the icon picker", { styleName(st.panelStyle) },
                     { st.panelStyle = cycle(listOf("liquid", "clear", "amoled"), st.panelStyle, it) }),
@@ -351,8 +402,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             val devOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) == 1 }.getOrDefault(false)
             val adbOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.ADB_ENABLED, 0) == 1 }.getOrDefault(false)
             listOf(
-                Toggle("Home button opens Glassio", "Needs the accessibility service below", { st.interceptHome }, { st.interceptHome = it }),
-                Act("Turn on the accessibility service", "Find Glassio and switch it on", "") { openSystem(ctx, AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS) },
+                Toggle("Home button opens Alfredo", "Needs the accessibility service below", { st.interceptHome }, { st.interceptHome = it }),
+                Act("Turn on the accessibility service", "Find Alfredo and switch it on", "") { openSystem(ctx, AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS) },
                 Act("Turn it on with ADB", if (homeKeyOn) "The accessibility service is on" else "When the TV doesn't let you (restricted setting / greyed out). Needs TV access (ADB), below", "") {
                     scope.launch(Dispatchers.IO) {
                         val svc = "${ctx.packageName}/com.glasslauncher.tv.HomeKeyService"
@@ -375,16 +426,68 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Note("TV access (ADB): silent updates and restricted system actions use the TV's debugging connection. Turn it on once:"),
                 Note("1. Developer options: open About below and press OK on \"Android TV OS build\" (or \"Build\") 7 times, until it says you are a developer."),
                 Note("2. Open Developer options below and turn on USB debugging (on some TVs also \"Network debugging\" / \"ADB over network\")."),
-                Note("3. Press \"Allow Glassio\" below. The TV asks \"Allow USB debugging?\": tick Always allow from this computer, then OK. It is asked only once."),
+                Note("3. Press \"Allow Alfredo\" below. The TV asks \"Allow USB debugging?\": tick Always allow from this computer, then OK. It is asked only once."),
                 Act("1 · Open About (enable Developer options)", if (devOn) "Developer options are on" else "Press OK on the build number 7 times", "") { openSystem(ctx, AndroidSettings.ACTION_DEVICE_INFO_SETTINGS) },
                 Act("2 · Open Developer options", if (adbOn) "USB debugging is on" else "Turn on USB debugging", "") { openSystem(ctx, AndroidSettings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) },
-                Act("3 · Allow Glassio", when (adbAccess) { true -> "Allowed: Glassio can use ADB"; false -> "Not allowed yet: press OK, then Always allow on the TV"; else -> "Press OK to check" }, "") {
+                Act("3 · Allow Alfredo", when (adbAccess) { true -> "Allowed: Alfredo can use ADB"; false -> "Not allowed yet: press OK, then Always allow on the TV"; else -> "Press OK to check" }, "") {
                     scope.launch(Dispatchers.IO) {
                         val ok = com.glasslauncher.tv.data.LocalShell.run(ctx, "echo ok").isSuccess
                         adbAccess = ok
-                        toast(ctx, if (ok) "Glassio can use ADB" else if (!adbOn) "Turn on USB debugging first (step 2)" else "Choose Always allow on the TV, then press OK here again")
+                        toast(ctx, if (ok) "Alfredo can use ADB" else if (!adbOn) "Turn on USB debugging first (step 2)" else "Choose Always allow on the TV, then press OK here again")
                     }
                 },
+            )
+        },
+        Category("Backup") {
+            listOf(
+                Act("Export backup", "Saves settings, dock and custom media to Downloads", "Export") {
+                    val needsStoragePerm = Build.VERSION.SDK_INT <= 28 &&
+                        ContextCompat.checkSelfPermission(ctx, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+                    if (needsStoragePerm) {
+                        storagePermLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    } else {
+                        scope.launch(Dispatchers.IO) {
+                            toast(ctx, tr("Exporting backup…"))
+                            val res = com.glasslauncher.tv.data.BackupManager.exportBackup(ctx)
+                            when (res) {
+                                is com.glasslauncher.tv.data.BackupManager.BackupResult.Success -> {
+                                    toast(ctx, "Exported: ${res.file.name}\nSHA-256: ${res.sha256.take(12)}…")
+                                }
+                                is com.glasslauncher.tv.data.BackupManager.BackupResult.Error -> {
+                                    toast(ctx, "Export failed: ${res.message}")
+                                }
+                            }
+                        }
+                    }
+                },
+                Act("Restore backup", "Restores settings from alfredo_backup.zip in Downloads", "Restore") {
+                    val needsReadPerm = Build.VERSION.SDK_INT <= 32 &&
+                        ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+                    if (needsReadPerm) {
+                        restorePermLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    } else {
+                        scope.launch(Dispatchers.IO) {
+                            val file = com.glasslauncher.tv.data.BackupManager.getPreferredBackupFile(ctx)
+                            if (!file.exists()) {
+                                toast(ctx, "Backup file not found in Downloads: ${file.name}")
+                                return@launch
+                            }
+                            toast(ctx, tr("Restoring backup…"))
+                            val res = com.glasslauncher.tv.data.BackupManager.importBackup(ctx, file)
+                            when (res) {
+                                is com.glasslauncher.tv.data.BackupManager.BackupResult.Success -> {
+                                    toast(ctx, tr("Backup restored! Reloading…"))
+                                    st.reload()
+                                    app.apps.reload()
+                                }
+                                is com.glasslauncher.tv.data.BackupManager.BackupResult.Error -> {
+                                    toast(ctx, "Restore failed: ${res.message}")
+                                }
+                            }
+                        }
+                    }
+                },
+                Note("Backup files are saved as ZIP in Downloads. Copy them to a computer or flash drive before reinstalling."),
             )
         },
         Category("About", Kind.About),
@@ -570,6 +673,7 @@ private fun Frame(
 private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data.AppEntry) -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+
     val rel by app.updater.available.collectAsState()
     val status by app.updater.status.collectAsState()
     val qr = remember { com.glasslauncher.tv.net.Net.qr(com.glasslauncher.tv.data.Updater.REPO_URL, 420).asImageBitmap() }
@@ -582,9 +686,9 @@ private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data
             Text(tr("Scan with your phone"), color = Color.White.copy(alpha = 0.5f), fontSize = (9 * s).sp)
         }
         val rows = buildList<SRow> {
-            add(Note("Glassio ${app.updater.current}"))
+            add(Note("Alfredo ${app.updater.current}"))
             if (rel != null) {
-                add(Act("Install update ${rel!!.version}", if (status.isNotBlank()) status else "Downloads from GitHub and restarts Glass", "Install") { app.updater.install() })
+                add(Act("Install update ${rel!!.version}", if (status.isNotBlank()) status else "Downloads from GitHub and restarts Alfredo", "Install") { app.updater.install() })
                 rel!!.notes.lineSequence().map { it.trim().removePrefix("-").removePrefix("*").trim() }.filter { it.isNotBlank() && !it.startsWith("#") }
                     .take(6).forEach { add(Note("• $it")) }
             } else add(Act("Check for updates", if (status.isNotBlank()) status else "Looks at the latest release on GitHub", "Check") {

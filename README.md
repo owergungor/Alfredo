@@ -1,45 +1,56 @@
-# Glassio
+# Alfredo
 
-Glassio is a lightweight Android TV launcher with a cinematic carousel, app dock, configurable glass styling, custom backgrounds, a screensaver, a local Library, Trakt Continue Watching, and English/Turkish interface language support.
+Alfredo is a fast, lightweight, liquid-glass Android TV launcher with a cinematic carousel, customizable app dock, dynamic background themes, ambient clock, personal Library, Trakt Continue Watching integration, and full English / Turkish interface support.
+
+Alfredo is a continuation and optimized fork of the open-source launcher codebase originally created as Glassio by Mohmmad (mrh12).
 
 ## Features
 
-- Remote-first navigation designed for Android TV.
-- Customizable carousel, title artwork, transitions, and backdrop rotation.
-- Liquid-glass, clear, and dark themes with separate dock and settings panel styling.
-- App dock, folders, custom icons, and icon packs.
-- Personal Library stored locally on the TV and optional Trakt watchlist/playback integration.
-- Custom image/video backgrounds and screensaver options.
-- English and Turkish UI language selection in Settings → Language.
-- Performance presets for lower-memory TV devices.
+- **Remote-first navigation**: Built specifically for Android TV remotes and low-latency D-Pad interactions.
+- **Optimized for TV hardware**: Tailored for memory-constrained devices (e.g. Xiaomi Mi TV Stick, 1 GB RAM) with asynchronous cold startup, instant disk cache, and low-RAM rendering safeguards.
+- **Liquid-Glass Aesthetics**: Cinematic tile rising, scale, and subtle specular lighting effects.
+- **Customizable Dock & Folders**: Reorder apps, create folders, hide unused apps, and set favorites.
+- **Local Library & Trakt Sync**: Manage personal watchlists locally on the TV or link a Trakt account.
+- **Dynamic Backgrounds & Screensaver**: Built-in support for custom images, videos, and TV screensaver handoff.
+- **Bilingual Interface**: Native English and Turkish localization.
+- **In-App Updater**: Direct release updates from official GitHub releases (`owergungor/alfredo`).
 
-## Build
+## Building from Source
 
-Requirements: Android SDK, JDK 17 or compatible, and network access for the Gradle wrapper/dependencies.
+Requirements:
+- Android SDK (API 35/36 build-tools)
+- JDK 17
+- Gradle 8+
 
+To build the Debug APK:
 ```bash
 ./gradlew assembleDebug
 ```
+Output: `app/build/outputs/apk/debug/app-debug.apk`
 
-The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
+To build the Release APK:
+```bash
+./gradlew assembleRelease
+```
+Output: `app/build/outputs/apk/release/app-release.apk`
 
-## Install on Android TV
+## Installation via ADB
 
-With ADB enabled and the TV reachable on the network:
+With USB/Network Debugging enabled on your Android TV:
 
 ```bash
-adb connect TV_IP:5555
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb connect <TV_IP>:5555
+adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
-Replace `TV_IP` with the TV's address. Do not disable the system launcher until Glassio has been tested and you know how to restore the default launcher.
+## Configuration & Notes
 
-## Project notes
+- **Application ID**: `com.glasslauncher.tv.devtest` (maintained for seamless upgrades over existing installations and TV preference retention).
+- **Update Channel**: Automated update checks query the `owergungor/alfredo` GitHub Releases API.
+- **Privacy & Storage**: Settings and Library items remain stored locally on your TV device.
 
-- Application ID: `com.glasslauncher.tv.devtest` for the current development build.
-- The project uses Kotlin and Jetpack Compose.
-- Settings are stored locally on the TV. The Library's saved titles remain local unless the user enables Trakt integration.
+## License & Credits
 
-## Credits and trademarks
-
-Glassio is an independent project and is not affiliated with Apple, Google, TMDB, or other third-party services. Third-party names and marks belong to their respective owners. See `LICENSE` and `TRADEMARKS.md` for details.
+- Licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See [LICENSE](LICENSE) for details.
+- Originally developed as Glassio by [Mohmmad (mrh12)](https://github.com/mohammadmrh12).
+- Alfredo is an independent project and is not affiliated with Google, Apple, TMDB, or Xiaomi.

@@ -90,13 +90,16 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         http = Http(this)
         icons = IconStore(this)
         packs = IconPacks(this)
-        apps = AppRepository(this, settings, packs, icons).also { it.start() }
+        apps = AppRepository(this, settings, packs, icons, scope).also { it.start() }
         catalogs = CatalogRepository(this, settings, http).also { it.start(scope) }
         cw = com.glasslauncher.tv.data.ContinueWatching(this, settings, http, scope).also { it.start() }
         weather = com.glasslauncher.tv.data.Weather(settings, http, scope).also { it.start() }
         library = com.glasslauncher.tv.data.Library(this, settings, http, cw.trakt, scope)
         updater = com.glasslauncher.tv.data.Updater(this, scope).also { it.start() }
-        icons.importDropFolder(apps.apps.value.map { it.pkg })
+        scope.launch(Dispatchers.IO) {
+            apps.initialScanDone.await()
+            icons.importDropFolder(apps.apps.value.map { it.pkg })
+        }
         ensureHomeService()
         // Decode dock artwork once, off the main thread, so the first frames are instant.
         scope.launch { apps.apps.value.forEach { runCatching { apps.artwork(it) } } }
@@ -108,15 +111,18 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
      */
     fun ensureHomeService() {
         if (!settings.interceptHome) return
-        if (checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
-        runCatching {
-            val me = "$packageName/${HomeKeyService::class.java.name}"
-            val cr = contentResolver
-            val cur = android.provider.Settings.Secure.getString(cr, android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
-            val parts = cur.split(':').filter { it.isNotBlank() }
-            val mine = parts.any { it == me || it == "$packageName/.HomeKeyService" }
-            if (!mine) android.provider.Settings.Secure.putString(cr, android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, (parts + me).joinToString(":"))
-            android.provider.Settings.Secure.putString(cr, android.provider.Settings.Secure.ACCESSIBILITY_ENABLED, "1")
+        scope.launch(Dispatchers.IO) {
+            if (checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return@launch
+            runCatching {
+                val me = "$packageName/${HomeKeyService::class.java.name}"
+                val cr = contentResolver
+                val cur = android.provider.Settings.Secure.getString(cr, android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+                val parts = cur.split(':').filter { it.isNotBlank() }
+                val mine = parts.any { it == me || it == "$packageName/.HomeKeyService" }
+                if (!mine) android.provider.Settings.Secure.putString(cr, android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, (parts + me).joinToString(":"))
+                val accEnabled = android.provider.Settings.Secure.getString(cr, android.provider.Settings.Secure.ACCESSIBILITY_ENABLED)
+                if (accEnabled != "1") android.provider.Settings.Secure.putString(cr, android.provider.Settings.Secure.ACCESSIBILITY_ENABLED, "1")
+            }
         }
     }
 }

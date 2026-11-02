@@ -11,6 +11,7 @@ class Settings(private val ctx: Context) {
     private val sp = ctx.getSharedPreferences("glass", Context.MODE_PRIVATE)
     private val rev = mutableIntStateOf(0)
 
+    fun reload() { touch() }
     private fun touch() { rev.intValue = rev.intValue + 1 }
     /** Test only: every stored value (am start --ez dump_prefs true → logcat GlassPrefs). */
     fun dumpAll(): Map<String, *> = sp.all

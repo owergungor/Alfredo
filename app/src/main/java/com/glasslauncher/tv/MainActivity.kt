@@ -24,6 +24,7 @@ class MainActivity : ComponentActivity() {
     @Volatile private var lastInput = System.currentTimeMillis()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        com.glasslauncher.tv.data.StartupTracker.onActivityCreated()
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         hideBars()
@@ -74,6 +75,15 @@ class MainActivity : ComponentActivity() {
         i?.getStringExtra("slide_anim")?.let { if (it in setOf("fade", "slide", "apple")) app.settings.slideAnim = it }
         i?.getStringExtra("dots_mode")?.let { if (it in setOf("window", "liquid", "progress", "hidden")) app.settings.dotsMode = it }
         i?.getStringExtra("continue_mode")?.let { if (it in setOf("off", "first", "mixed")) app.settings.continueMode = it }
+        if (i?.getBooleanExtra("export_backup", false) == true) {
+            val res = com.glasslauncher.tv.data.BackupManager.exportBackup(this)
+            com.glasslauncher.tv.data.Glog.i("Auto export result: $res")
+        }
+        if (i?.getBooleanExtra("import_backup", false) == true) {
+            val f = com.glasslauncher.tv.data.BackupManager.getPreferredBackupFile(this)
+            val res = com.glasslauncher.tv.data.BackupManager.importBackup(this, f)
+            com.glasslauncher.tv.data.Glog.i("Auto import result: $res")
+        }
         if (i?.getBooleanExtra("dump_prefs", false) == true) app.settings.dumpAll().toSortedMap().forEach { (k, v) ->
             android.util.Log.i("GlassPrefs", "$k=${v.toString().take(120)}")
         }

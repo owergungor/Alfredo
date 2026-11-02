@@ -31,7 +31,7 @@ class Trakt(ctx: Context) {
         c.setRequestProperty("Content-Type", "application/json")
         c.setRequestProperty("trakt-api-version", "2")
         c.setRequestProperty("trakt-api-key", clientId)
-        c.setRequestProperty("User-Agent", "Glassio/1.0")
+        c.setRequestProperty("User-Agent", "Alfredo/1.0")
         if (auth) c.setRequestProperty("Authorization", "Bearer ${accessToken() ?: ""}")
         try {
             if (body != null) { c.doOutput = true; c.outputStream.use { it.write(body.toString().toByteArray()) } }
@@ -45,7 +45,7 @@ class Trakt(ctx: Context) {
     fun deviceCode(): DeviceCode {
         val (code, text) = call("POST", "/oauth/device/code", JSONObject().put("client_id", clientId))
         if (code !in 200..299) Glog.w("Trakt device code: HTTP $code $text")
-        check(code in 200..299) { "Trakt answered HTTP $code" + (if (code == 401 || code == 403) " (this Glassio build's Trakt app is not allowed)" else "") }
+        check(code in 200..299) { "Trakt answered HTTP $code" + (if (code == 401 || code == 403) " (this Alfredo build's Trakt app is not allowed)" else "") }
         val o = JSONObject(text)
         return DeviceCode(o.getString("device_code"), o.getString("user_code"),
             o.optString("verification_url", "https://trakt.tv/activate"), o.optInt("expires_in", 600), o.optInt("interval", 5))

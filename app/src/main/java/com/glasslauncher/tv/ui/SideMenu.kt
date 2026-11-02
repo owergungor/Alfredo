@@ -154,8 +154,8 @@ fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit
                             onClick = {
                                 target = i
                                 when {
-                                    key == "image" && st.bgImage.isBlank() -> toast(ctx, "Choose a picture first: Glassio settings → Clock & glass")
-                                    key == "video" && st.bgVideo.isBlank() -> toast(ctx, "Choose a video first: Glassio settings → Clock & glass")
+                                    key == "image" && st.bgImage.isBlank() -> toast(ctx, "Choose a picture first: Alfredo settings → Clock & glass")
+                                    key == "video" && st.bgVideo.isBlank() -> toast(ctx, "Choose a video first: Alfredo settings → Clock & glass")
                                     else -> st.bgMode = key
                                 }
                             })
@@ -164,7 +164,7 @@ fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit
                     val rows = buildList<Triple<String, String, () -> Unit>> {
                         add(Triple("nextBackground", "Next background", onNextBackground))
                         if (st.menuLibrary) add(Triple("library", "Library") { onLibrary() })
-                        add(Triple("sliders", "Glassio settings") { onSettings() })
+                        add(Triple("sliders", "Alfredo settings") { onSettings() })
                         if (st.menuAndroid) add(Triple("gear", "Android settings") { open(ctx, android.provider.Settings.ACTION_SETTINGS) })
                         if (st.menuWifi) add(Triple("wifi", "Wi-Fi") { open(ctx, android.provider.Settings.ACTION_WIFI_SETTINGS) })
                         if (st.menuThemes) add(Triple("theme", "Themes") { target = 0; themes = true })

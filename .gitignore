@@ -5,3 +5,15 @@ local.properties
 *.apk
 .DS_Store
 releases/
+.idea/
+*.iml
+*.bak
+*.rebrand_bak
+*.phase5d_bak
+_rebrand_bak/
+_backups/
+*.jks
+*.keystore
+signing.properties
+*.zip
+*.sha256
