@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="docs/brand/banner_1280x720.png" alt="Alfredo Banner" width="100%" style="border-radius: 12px;" />
+  <img width="2172" height="724" alt="Alfredo_3x1" src="https://github.com/user-attachments/assets/05b96269-0d0e-4310-b772-1d199f008aac" />
 </p>
 
 <p align="center">
-  <img src="docs/brand/icon_512.png" alt="Alfredo Icon" width="96" height="96" />
+  <img width="1254" height="1254" alt="Alfredo_1x1" src="https://github.com/user-attachments/assets/5aca1463-03c1-41fd-bf28-a9939a224dd0" />
 </p>
 
 <h1 align="center">Alfredo</h1>
