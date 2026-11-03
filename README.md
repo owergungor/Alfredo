@@ -1,9 +1,5 @@
 <p align="center">
-  <img width="2172" height="724" alt="Alfredo_3x1" src="https://github.com/user-attachments/assets/05b96269-0d0e-4310-b772-1d199f008aac" />
-</p>
-
-<p align="center">
-  <img width="1254" height="1254" alt="Alfredo_1x1" src="https://github.com/user-attachments/assets/5aca1463-03c1-41fd-bf28-a9939a224dd0" />
+  <img width="2172" height="724" alt="Alfredo_3x1" src="https://github.com/user-attachments/assets/d029cd0c-965e-44f8-8ee7-d387db02cb67" />
 </p>
 
 <h1 align="center">Alfredo</h1>
