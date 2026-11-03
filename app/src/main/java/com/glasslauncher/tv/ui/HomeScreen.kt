@@ -515,12 +515,12 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                                 tr(centerDate),
                                 modifier = Modifier.align(Alignment.TopCenter)
                                     .padding(top = (42 * s).dp),
-                                color = Color.White.copy(alpha = 0.94f),
+                                color = if (settings.clockTheme == "bow" || settings.theme == "bow") Color(0xFF111114).copy(alpha = 0.94f) else Color.White.copy(alpha = 0.94f),
                                 fontFamily = clockFont,
                                 fontSize = (19 * s).sp,
                                 fontWeight = FontWeight.SemiBold,
                                 letterSpacing = (-0.2f * s).sp,
-                                style = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.22f), blurRadius = 8f)),
+                                style = TextStyle(shadow = Shadow(if (settings.clockTheme == "bow" || settings.theme == "bow") Color.White.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.22f), blurRadius = 8f)),
                                 maxLines = 1,
                             )
                         }
@@ -530,6 +530,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                             scale = s,
                             fontChoice = settings.uiFont,
                             showDate = settings.showDate,
+                            clockTheme = settings.clockTheme,
                         )
                     }
                     HeroSection(app, s, hidden = expanded || folderOpen, paused = screen != Screen.Home, metrics = metrics, shownUrl = shownUrl,
@@ -1342,7 +1343,10 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
     val a by animateFloatAsState(if (visible) 1f else 0f, tween(if (visible) 140 else 350), label = "topAlpha")
     val date by produceState(dateText(), Unit) { while (true) { value = dateText(); delay(60_000) } }
     val wx by app.weather.now.collectAsState()
-    val shade = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.5f), blurRadius = 8f))
+    val topLight = settings.theme == "bow"
+    val topFg = if (topLight) Color(0xFF111114) else Color.White
+    val topSoft = if (topLight) Color(0xFF111114).copy(alpha = 0.70f) else Color.White.copy(alpha = 0.75f)
+    val shade = if (topLight) TextStyle(color = topFg, shadow = Shadow(Color.White.copy(alpha = 0.5f), blurRadius = 4f)) else TextStyle(color = topFg, shadow = Shadow(Color.Black.copy(alpha = 0.5f), blurRadius = 8f))
     Row(
         modifier.padding(top = (18 * s).dp, start = (56 * s).dp, end = (34 * s).dp).graphicsLayer { alpha = a },
         verticalAlignment = Alignment.Top,
@@ -1350,40 +1354,40 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
         val right = settings.clockPos == "right"
         // Apple TV: time and date, top left.
         if (settings.showClock && !right) Column {
-            Text(tr(time), color = Color.White, fontSize = (19 * s).sp, fontWeight = FontWeight.SemiBold, style = shade)
-            if (settings.showDate) Text(tr(date), color = Color.White.copy(alpha = 0.75f), fontSize = (8.5f * s).sp,
+            Text(tr(time), color = topFg, fontSize = (19 * s).sp, fontWeight = FontWeight.SemiBold, style = shade)
+            if (settings.showDate) Text(tr(date), color = topSoft, fontSize = (8.5f * s).sp,
                 fontWeight = FontWeight.SemiBold, letterSpacing = (0.6f * s).sp, style = shade)
         }
         Spacer(Modifier.weight(1f))
         @Composable fun weatherRow() {
             val w = wx
             if (w != null && settings.weatherMode != "off") Row(verticalAlignment = Alignment.CenterVertically) {
-                WeatherIcon(w.icon, Modifier.size((15 * s).dp))
+                WeatherIcon(w.icon, Modifier.size((15 * s).dp), topFg)
                 Spacer(Modifier.width((5 * s).dp))
                 val parts = buildList {
                     add(w.temp(settings.weatherF))
                     if (settings.weatherMode == "condition" || settings.weatherMode == "all") w.condition.takeIf { it.isNotBlank() }?.let { add(it) }
                     if (settings.weatherMode == "city" || settings.weatherMode == "all") add(w.city)
                 }
-                Text(tr(parts.joinToString("  ·  ")), color = Color.White.copy(alpha = 0.9f), fontSize = (10 * s).sp, fontWeight = FontWeight.Medium, style = shade)
+                Text(tr(parts.joinToString("  ·  ")), color = topFg.copy(alpha = 0.9f), fontSize = (10 * s).sp, fontWeight = FontWeight.Medium, style = shade)
             }
         }
         if (right) Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy((4 * s).dp)) {
             // Clock next to Settings, weather under it.
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
                 if (settings.showClock) Column(horizontalAlignment = Alignment.End) {
-                    Text(tr(time), color = Color.White, fontSize = (17 * s).sp, fontWeight = FontWeight.SemiBold, style = shade)
-                    if (settings.showDate) Text(tr(date), color = Color.White.copy(alpha = 0.75f), fontSize = (8 * s).sp,
+                    Text(tr(time), color = topFg, fontSize = (17 * s).sp, fontWeight = FontWeight.SemiBold, style = shade)
+                    if (settings.showDate) Text(tr(date), color = topSoft, fontSize = (8 * s).sp,
                         fontWeight = FontWeight.SemiBold, letterSpacing = (0.6f * s).sp, style = shade)
                 }
                 UpdateDot(app, s) { barFocused = it }
-                GearButton(s, gearClick, gearReq, gearUp) { barFocused = it; gearFocus(it) }
+                GearButton(s, gearClick, gearReq, gearUp, fg = topFg) { barFocused = it; gearFocus(it) }
             }
             weatherRow()
         } else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
             weatherRow()
             UpdateDot(app, s) { barFocused = it }
-            GearButton(s, gearClick, gearReq, gearUp) { barFocused = it; gearFocus(it) }
+            GearButton(s, gearClick, gearReq, gearUp, fg = topFg) { barFocused = it; gearFocus(it) }
         }
     }
 }
@@ -1458,7 +1462,7 @@ private fun dateText(): String =
     java.text.SimpleDateFormat("d MMM ''yy", java.util.Locale.forLanguageTag(if (UiStrings.language == "tr") "tr-TR" else "en-US")).format(java.util.Date()).uppercase()
 
 @Composable
-private fun GearButton(s: Float, onClick: () -> Unit, req: FocusRequester, onUp: () -> Boolean = { false }, onFocus: (Boolean) -> Unit) {
+private fun GearButton(s: Float, onClick: () -> Unit, req: FocusRequester, onUp: () -> Boolean = { false }, fg: Color = Color.White, onFocus: (Boolean) -> Unit) {
     // tvOS 26 top-right button: a small glass circle with the gearshape glyph; selected it turns white.
     var focused by remember { mutableStateOf(false) }
     val scale = animateFloatAsState(if (focused) 1.16f else 1f, spring(0.8f, 900f), label = "gear")
@@ -1471,7 +1475,7 @@ private fun GearButton(s: Float, onClick: () -> Unit, req: FocusRequester, onUp:
             .tvPress(onKey = { ev -> ev.type == KeyEventType.KeyDown && ev.key == Key.DirectionUp && onUp() }, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        SlidersGlyph(Modifier.fillMaxSize(), Color.White) { lit.value }
+        SlidersGlyph(Modifier.fillMaxSize(), fg) { lit.value }
     }
 }
 
@@ -1661,15 +1665,16 @@ private fun TilePlate(style: String, focused: Boolean, s: Float, radius: Dp, fla
             tint = Color.White.copy(alpha = if (focused) 0.05f else 0.02f), sharp = true, wobble = if (focused && style == "water") env.wobble else 0f,
         ) {
             Box(Modifier.matchParentSize().border(0.6.dp, Color.White.copy(alpha = if (focused) 0.30f else 0.16f), RoundedCornerShape(radius)))
+            Box(Modifier.matchParentSize().border(if (focused) 1.8.dp else 0.6.dp, Color.White.copy(alpha = if (focused) 0.80f else 0.16f), RoundedCornerShape(radius)))
             Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center, content = content)
         }
-        "amoled" -> Box(Modifier.fillMaxSize().background(Color.Black).border(0.6.dp, Color.White.copy(alpha = if (focused) 0.5f else 0.10f), RoundedCornerShape(radius)), contentAlignment = Alignment.Center, content = content)
-        "bow" -> Box(Modifier.fillMaxSize().background(Color(0xFFF4F4F6)), contentAlignment = Alignment.Center, content = content)
+        "amoled" -> Box(Modifier.fillMaxSize().background(Color.Black).border(if (focused) 1.8.dp else 0.6.dp, Color.White.copy(alpha = if (focused) 0.85f else 0.12f), RoundedCornerShape(radius)), contentAlignment = Alignment.Center, content = content)
+        "bow" -> Box(Modifier.fillMaxSize().background(Color(0xFFF4F4F6)).border(if (focused) 2.dp else 0.8.dp, if (focused) Color(0xFF111114) else Color(0x26000000), RoundedCornerShape(radius)), contentAlignment = Alignment.Center, content = content)
         // Clear (matte): the dock behind is already frosted glass, so the plate is just a light veil over it.
         // Drawing the blurred picture again in every icon cost the TV GPU about as much as the whole page.
         "clear" -> Box(
-            Modifier.fillMaxSize().background(Color.White.copy(alpha = if (focused) 0.18f else 0.10f))
-                .border(0.6.dp, Color.White.copy(alpha = if (focused) 0.32f else 0.14f), RoundedCornerShape(radius)),
+            Modifier.fillMaxSize().background(Color.White.copy(alpha = if (focused) 0.22f else 0.10f))
+                .border(if (focused) 1.8.dp else 0.6.dp, Color.White.copy(alpha = if (focused) 0.80f else 0.16f), RoundedCornerShape(radius)),
             contentAlignment = Alignment.Center, content = content,
         )
         else -> LiquidSurface(
@@ -1680,6 +1685,7 @@ private fun TilePlate(style: String, focused: Boolean, s: Float, radius: Dp, fla
             // and saved the TV GPU half its frame time.
             slideInside = false,
         ) {
+            Box(Modifier.matchParentSize().border(if (focused) 1.8.dp else 0.6.dp, Color.White.copy(alpha = if (focused) 0.80f else 0.16f), RoundedCornerShape(radius)))
             Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center, content = content)
         }
     }

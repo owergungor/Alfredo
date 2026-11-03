@@ -1,4 +1,4 @@
-package com.glasslauncher.tv.ui
+﻿package com.glasslauncher.tv.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -86,8 +86,8 @@ private fun <T> cycle(list: List<T>, cur: T, d: Int): T {
     val i = list.indexOf(cur).let { if (it < 0) 0 else it }
     return list[(i + d).mod(list.size)]
 }
-private fun styleName(v: String) = when (v) { "water" -> "Glass like glass"; "water_still" -> "Glass like glass (still)"; "clear" -> "Clear (matte)"; "amoled" -> "AMOLED black"; "bow" -> "Black on white"; else -> "Liquid glass" }
-private fun themeName(v: String) = when (v) { "bow" -> "Black on white"; "amoled" -> "Black AMOLED"; "liquid" -> "Liquid"; "clear" -> "Clear"; "water_still" -> "Glass still"; "water" -> "Glass is glass"; else -> "Custom" }
+private fun styleName(v: String) = when (v) { "clear" -> "White Glass"; "liquid" -> "Black Glass"; "bow" -> "White"; "amoled" -> "Black"; "water_still" -> "Clear"; else -> "White Glass" }
+private fun themeName(v: String) = when (v) { "clear" -> "White Glass"; "liquid" -> "Black Glass"; "bow" -> "White"; "amoled" -> "Black"; "water_still" -> "Clear"; else -> "Custom" }
 private fun hostOf(u: String) = runCatching { java.net.URI(u).host }.getOrNull() ?: "add-on"
 private fun pct(f: Float) = "${(f * 100).roundToInt()}%"
 private fun tenth(f: Float, d: Int) = ((f * 10).roundToInt() + d) / 10f
@@ -104,7 +104,7 @@ private fun openPlay(ctx: Context, pkg: String?, query: String?) {
     toast(ctx, "Google Play is not available on this device")
 }
 
-/** Is Glassio's Home-button accessibility service switched on? */
+/** Is Alfredo's Home-button accessibility service switched on? */
 private fun isHomeKeyOn(ctx: Context): Boolean = runCatching {
     AndroidSettings.Secure.getString(ctx.contentResolver, AndroidSettings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
         .contains("${ctx.packageName}/")
@@ -167,6 +167,59 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             toast(ctx, tr("Storage permission denied. Cannot read backup file."))
         }
     }
+    val onExportBackup: () -> Unit = {
+        val needsStoragePerm = Build.VERSION.SDK_INT <= 28 &&
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        if (needsStoragePerm) {
+            storagePermLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            scope.launch(Dispatchers.IO) {
+                toast(ctx, tr("Exporting backup…"))
+                val res = com.glasslauncher.tv.data.BackupManager.exportBackup(ctx)
+                when (res) {
+                    is com.glasslauncher.tv.data.BackupManager.BackupResult.Success -> {
+                        toast(ctx, "Exported: ${res.file.name}\nSHA-256: ${res.sha256.take(12)}…")
+                    }
+                    is com.glasslauncher.tv.data.BackupManager.BackupResult.Error -> {
+                        toast(ctx, "Export failed: ${res.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    val onRestoreBackup: () -> Unit = {
+        val needsReadPerm = Build.VERSION.SDK_INT <= 32 &&
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        if (needsReadPerm) {
+            restorePermLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        } else {
+            scope.launch(Dispatchers.IO) {
+                val file = com.glasslauncher.tv.data.BackupManager.getPreferredBackupFile(ctx)
+                if (!file.exists()) {
+                    toast(ctx, "Backup file not found in Downloads: ${file.name}")
+                    return@launch
+                }
+                toast(ctx, tr("Restoring backup…"))
+                val res = com.glasslauncher.tv.data.BackupManager.importBackup(ctx, file)
+                when (res) {
+                    is com.glasslauncher.tv.data.BackupManager.BackupResult.Success -> {
+                        toast(ctx, tr("Backup restored! Reloading…"))
+                        st.reload()
+                        app.apps.reload()
+                    }
+                    is com.glasslauncher.tv.data.BackupManager.BackupResult.Error -> {
+                        toast(ctx, "Restore failed: ${res.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    val light = st.panelStyle == "bow" || st.theme == "bow"
+    val ink = if (light) Color(0xFF111114) else Color.White
+    val soft = ink.copy(alpha = if (light) 0.60f else 0.65f)
+
     val traktCode by app.cw.traktCode.collectAsState()
     val tvRev = remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var homeKeyOn by remember { mutableStateOf(isHomeKeyOn(ctx)) }
@@ -251,7 +304,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Show date", "Display the date above the clock", { st.showDate }, { st.showDate = it }),
                 Toggle("24-hour clock", "Use 19:30 instead of 7:30 PM", { st.clock24h }, { st.clock24h = it }),
                 Adjust("Clock style", "Material used by the clock", { styleName(st.clockTheme) },
-                    { st.clockTheme = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.clockTheme, it) }),
+                    { st.clockTheme = cycle(listOf("clear", "liquid", "bow", "amoled"), st.clockTheme, it) }),
                 Adjust("Top-bar clock position", "Position of the small clock by Settings", { if (st.clockPos == "right") "Right, by Settings" else "Left, like Apple TV" },
                     { st.clockPos = cycle(listOf("left", "right"), st.clockPos, it) }),
                 Adjust("Weather", "Top bar, next to the settings button", {
@@ -277,13 +330,13 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             listOf(
                 Adjust("Theme", "One look for the dock, the icons and the menu. Black ones keep the dock clear (matte)",
                     { if (st.theme.isBlank()) "Custom" else themeName(st.theme) },
-                    { st.applyTheme(cycle(listOf("bow", "amoled", "liquid", "clear", "water_still", "water"), st.theme.ifBlank { "liquid" }, it)) }),
+                    { st.applyTheme(cycle(listOf("clear", "liquid", "bow", "amoled"), st.theme.ifBlank { "clear" }, it)) }),
                 Adjust("UI font", "Changes the typeface throughout Alfredo, including the clock and date", { if (st.uiFont == "apple") "Apple-style (Inter)" else "System" },
                     { st.uiFont = cycle(listOf("apple", "system"), st.uiFont, it) }),
                 Adjust("Settings background", "Behind settings and the icon picker", { styleName(st.panelStyle) },
-                    { st.panelStyle = cycle(listOf("liquid", "clear", "amoled"), st.panelStyle, it) }),
+                    { st.panelStyle = cycle(listOf("clear", "liquid", "bow", "amoled"), st.panelStyle, it) }),
                 Adjust("Icon style", "How the plate behind every icon looks", { styleName(st.tileStyle) },
-                    { st.tileStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.tileStyle, it); st.theme = "" }),
+                    { st.tileStyle = cycle(listOf("clear", "liquid", "bow", "amoled"), st.tileStyle, it); st.theme = "" }),
                 Adjust("Background", "Each title's own picture, or yours: a picture or a video, from a link or the folder below",
                     { when (st.bgMode) { "image" -> "My picture"; "video" -> "My video"; else -> "Title backdrops" } },
                     { st.bgMode = cycle(listOf("carousel", "image", "video"), st.bgMode, it) }),
@@ -402,7 +455,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             val devOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) == 1 }.getOrDefault(false)
             val adbOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.ADB_ENABLED, 0) == 1 }.getOrDefault(false)
             listOf(
-                Toggle("Home button opens Alfredo", "Needs the accessibility service below", { st.interceptHome }, { st.interceptHome = it }),
+                Toggle("Home button opens Alfredo", "Needs the accessibility service below", { st.interceptHome }, { st.interceptHome = it; if (it) app.ensureHomeService() }),
                 Act("Turn on the accessibility service", "Find Alfredo and switch it on", "") { openSystem(ctx, AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS) },
                 Act("Turn it on with ADB", if (homeKeyOn) "The accessibility service is on" else "When the TV doesn't let you (restricted setting / greyed out). Needs TV access (ADB), below", "") {
                     scope.launch(Dispatchers.IO) {
@@ -411,7 +464,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                             "case \"\$cur\" in *$svc*) ;; null|'') settings put secure enabled_accessibility_services $svc ;; " +
                             "*) settings put secure enabled_accessibility_services \"\$cur:$svc\" ;; esac; " +
                             "settings put secure accessibility_enabled 1; appops set ${ctx.packageName} ACCESS_RESTRICTED_SETTINGS allow 2>/dev/null; " +
-                            // Lets Glassio switch the service back on by itself after every update.
+                            // Lets Alfredo switch the service back on by itself after every update.
                             "pm grant ${ctx.packageName} android.permission.WRITE_SECURE_SETTINGS 2>/dev/null; true"
                         val r = com.glasslauncher.tv.data.LocalShell.run(ctx, cmd)
                         homeKeyOn = isHomeKeyOn(ctx)
@@ -438,58 +491,6 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 },
             )
         },
-        Category("Backup") {
-            listOf(
-                Act("Export backup", "Saves settings, dock and custom media to Downloads", "Export") {
-                    val needsStoragePerm = Build.VERSION.SDK_INT <= 28 &&
-                        ContextCompat.checkSelfPermission(ctx, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
-                    if (needsStoragePerm) {
-                        storagePermLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    } else {
-                        scope.launch(Dispatchers.IO) {
-                            toast(ctx, tr("Exporting backup…"))
-                            val res = com.glasslauncher.tv.data.BackupManager.exportBackup(ctx)
-                            when (res) {
-                                is com.glasslauncher.tv.data.BackupManager.BackupResult.Success -> {
-                                    toast(ctx, "Exported: ${res.file.name}\nSHA-256: ${res.sha256.take(12)}…")
-                                }
-                                is com.glasslauncher.tv.data.BackupManager.BackupResult.Error -> {
-                                    toast(ctx, "Export failed: ${res.message}")
-                                }
-                            }
-                        }
-                    }
-                },
-                Act("Restore backup", "Restores settings from alfredo_backup.zip in Downloads", "Restore") {
-                    val needsReadPerm = Build.VERSION.SDK_INT <= 32 &&
-                        ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
-                    if (needsReadPerm) {
-                        restorePermLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                    } else {
-                        scope.launch(Dispatchers.IO) {
-                            val file = com.glasslauncher.tv.data.BackupManager.getPreferredBackupFile(ctx)
-                            if (!file.exists()) {
-                                toast(ctx, "Backup file not found in Downloads: ${file.name}")
-                                return@launch
-                            }
-                            toast(ctx, tr("Restoring backup…"))
-                            val res = com.glasslauncher.tv.data.BackupManager.importBackup(ctx, file)
-                            when (res) {
-                                is com.glasslauncher.tv.data.BackupManager.BackupResult.Success -> {
-                                    toast(ctx, tr("Backup restored! Reloading…"))
-                                    st.reload()
-                                    app.apps.reload()
-                                }
-                                is com.glasslauncher.tv.data.BackupManager.BackupResult.Error -> {
-                                    toast(ctx, "Restore failed: ${res.message}")
-                                }
-                            }
-                        }
-                    }
-                },
-                Note("Backup files are saved as ZIP in Downloads. Copy them to a computer or flash drive before reinstalling."),
-            )
-        },
         Category("About", Kind.About),
 
     )
@@ -497,20 +498,20 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     BackHandler { if (rightFocused) runCatching { catFocus[cat].requestFocus() } else onClose() }
     LaunchedEffect(Unit) { delay150(); runCatching { firstCat.requestFocus() } }
 
-    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)).padding((28 * s).dp)) {
+    Box(Modifier.fillMaxSize().background((if (light) Color.White else Color.Black).copy(alpha = 0.55f)).padding((28 * s).dp)) {
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy((16 * s).dp)) {
-            GlassPanel(Modifier.width((230 * s).dp).fillMaxHeight(), (30 * s).dp, style = st.panelStyle, darken = 0.42f) {
+            GlassPanel(Modifier.width((230 * s).dp).fillMaxHeight(), (30 * s).dp, style = st.panelStyle, darken = if (light) 0f else 0.42f) {
                 // Scrolls when the list is taller than the screen (the last entry, About, was cut off).
                 Column(Modifier.padding(horizontal = (14 * s).dp, vertical = (12 * s).dp).verticalScroll(rememberScrollState())) {
-                    Text(tr("Settings"), color = Color.White, fontSize = (22 * s).sp, fontWeight = FontWeight.Light, modifier = Modifier.padding(start = (8 * s).dp, bottom = (8 * s).dp))
+                    Text(tr("Settings"), color = ink, fontSize = (22 * s).sp, fontWeight = FontWeight.Light, modifier = Modifier.padding(start = (8 * s).dp, bottom = (8 * s).dp))
                     categories.forEachIndexed { i, c ->
                         var f by remember { mutableStateOf(false) }
                         Text(
-                            tr(c.title), color = Color.White, fontSize = (13.5f * s).sp,
+                            tr(c.title), color = if (cat == i) ink else soft, fontSize = (13.5f * s).sp,
                             fontWeight = if (cat == i) FontWeight.SemiBold else FontWeight.Normal,
                             modifier = Modifier.fillMaxWidth().padding(vertical = (1.5f * s).dp)
                                 .clip(RoundedCornerShape((14 * s).dp))
-                                .background(if (f) Color.White.copy(alpha = 0.30f) else if (cat == i) Color.White.copy(alpha = 0.12f) else Color.Transparent)
+                                .background(if (f) (if (light) Color.Black.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.30f)) else if (cat == i) (if (light) Color.Black.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.12f)) else Color.Transparent)
                                 .focusRequester(catFocus[i])
                                 .then(if (i == initialCat) Modifier.focusRequester(firstCat) else Modifier)
                                 .onFocusChanged { f = it.isFocused; if (it.isFocused) cat = i }
@@ -533,16 +534,16 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                         }
                     }
                     .focusGroup(),
-                (30 * s).dp, style = st.panelStyle, darken = 0.42f,
+                (30 * s).dp, style = st.panelStyle, darken = if (light) 0f else 0.42f,
             ) {
                 val c = categories[shownCat]
                 Column(Modifier.padding((18 * s).dp)) {
-                    Text(tr(c.title), color = Color.White, fontSize = (20 * s).sp, fontWeight = FontWeight.Light, modifier = Modifier.padding(start = (6 * s).dp, bottom = (8 * s).dp))
-                    if (c.kind == Kind.About) AboutPane(app, s, onApp = { e -> appMenu(app, e, ctx, scope) { dialog = it } })
+                    Text(tr(c.title), color = ink, fontSize = (20 * s).sp, fontWeight = FontWeight.Light, modifier = Modifier.padding(start = (6 * s).dp, bottom = (8 * s).dp))
+                    if (c.kind == Kind.About) AboutPane(app, s, light = light, ink = ink, soft = soft, onExport = onExportBackup, onRestore = onRestoreBackup, onApp = { e -> appMenu(app, e, ctx, scope) { dialog = it } })
                     else {
                         val rows = c.rows()
                         LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy((4 * s).dp)) {
-                            items(rows.size) { i -> RowView(rows[i], s, app, onApp = { e -> appMenu(app, e, ctx, scope) { dialog = it } }) }
+                            items(rows.size) { i -> RowView(rows[i], s, app, onApp = { e -> appMenu(app, e, ctx, scope) { dialog = it } }, light = light, ink = ink, soft = soft) }
                         }
                     }
                 }
@@ -569,19 +570,19 @@ private fun appMenu(app: GlassApp, e: AppEntry, ctx: Context, scope: kotlinx.cor
 }
 
 @Composable
-private fun RowView(row: SRow, s: Float, app: GlassApp, onApp: (AppEntry) -> Unit) {
+private fun RowView(row: SRow, s: Float, app: GlassApp, onApp: (AppEntry) -> Unit, light: Boolean = false, ink: Color = Color.White, soft: Color = Color.White.copy(alpha = 0.65f)) {
     when (row) {
-        is Note -> Text(tr(row.text), color = Color.White.copy(alpha = 0.55f), fontSize = (11.5f * s).sp, modifier = Modifier.padding(horizontal = (8 * s).dp, vertical = (6 * s).dp))
-        is Toggle -> Frame(s, onClick = { row.set(!row.get()) }) { f ->
-            Label(tr(row.title), tr(row.desc), s, Modifier.weight(1f))
+        is Note -> Text(tr(row.text), color = soft, fontSize = (11.5f * s).sp, modifier = Modifier.padding(horizontal = (8 * s).dp, vertical = (6 * s).dp))
+        is Toggle -> Frame(s, light = light, onClick = { row.set(!row.get()) }) { f ->
+            Label(tr(row.title), tr(row.desc), s, Modifier.weight(1f), ink = ink, soft = soft)
             val on = row.get()
-            Box(Modifier.width((38 * s).dp).height((22 * s).dp).clip(RoundedCornerShape(50)).background(if (on) Color(0xFF7B61FF) else Color.White.copy(alpha = 0.22f)).padding((3 * s).dp)) {
-                Box(Modifier.size((16 * s).dp).clip(RoundedCornerShape(50)).background(Color.White).align(if (on) Alignment.CenterEnd else Alignment.CenterStart))
+            Box(Modifier.width((38 * s).dp).height((22 * s).dp).clip(RoundedCornerShape(50)).background(if (on) Color(0xFF7B61FF) else if (light) Color.Black.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.22f)).padding((3 * s).dp)) {
+                Box(Modifier.size((16 * s).dp).clip(RoundedCornerShape(50)).background(if (light && !on) Color(0xFF444444) else Color.White).align(if (on) Alignment.CenterEnd else Alignment.CenterStart))
             }
         }
         is Adjust -> {
             var editing by remember { mutableStateOf(false) }
-            Frame(s, editing = editing, onKey = { ev ->
+            Frame(s, light = light, editing = editing, onKey = { ev ->
                 when {
                     !editing -> false
                     ev.key == Key.DirectionLeft || ev.key == Key.DirectionRight -> {
@@ -593,15 +594,15 @@ private fun RowView(row: SRow, s: Float, app: GlassApp, onApp: (AppEntry) -> Uni
                     else -> false
                 }
             }, onFocus = { if (!it) editing = false }, onClick = { editing = !editing }) { f ->
-                Label(tr(row.title), tr(if (editing) "◀ ▶ to change · OK when done" else row.desc), s, Modifier.weight(1f))
-                if (editing) Text(tr("‹  ${tr(row.value())}  ›"), color = Color(0xFFB9ABFF), fontSize = (13.5f * s).sp, fontWeight = FontWeight.SemiBold)
-                else Text(tr(row.value()), color = Color.White.copy(alpha = if (f) 1f else 0.75f), fontSize = (13 * s).sp)
+                Label(tr(row.title), tr(if (editing) "◀ ▶ to change · OK when done" else row.desc), s, Modifier.weight(1f), ink = ink, soft = soft)
+                if (editing) Text(tr("‹  ${tr(row.value())}  ›"), color = if (light) Color(0xFF5B3DE6) else Color(0xFFB9ABFF), fontSize = (13.5f * s).sp, fontWeight = FontWeight.SemiBold)
+                else Text(tr(row.value()), color = ink.copy(alpha = if (f) 1f else 0.75f), fontSize = (13 * s).sp)
             }
         }
-        is Act -> Frame(s, onClick = row.onClick) { f ->
-            Label(tr(row.title), tr(row.desc), s, Modifier.weight(1f))
+        is Act -> Frame(s, light = light, onClick = row.onClick) { f ->
+            Label(tr(row.title), tr(row.desc), s, Modifier.weight(1f), ink = ink, soft = soft)
             if (row.value.isNotEmpty()) Text(tr(if (row.ok == true) "✓  " + row.value else row.value),
-                color = when (row.ok) { true -> Color(0xFF34C759); false -> Color(0xFFFF6961); else -> Color.White.copy(alpha = 0.7f) },
+                color = when (row.ok) { true -> Color(0xFF34C759); false -> Color(0xFFFF6961); else -> ink.copy(alpha = 0.7f) },
                 fontSize = (12.5f * s).sp, fontWeight = if (row.ok != null) FontWeight.SemiBold else null)
         }
         is AppItem -> {
@@ -609,7 +610,7 @@ private fun RowView(row: SRow, s: Float, app: GlassApp, onApp: (AppEntry) -> Uni
             val hidden = e.pkg in app.settings.hiddenApps
             val art by produceState<ImageBitmap?>(null, e.pkg) { value = app.apps.artwork(e)?.bmp }
             var moving by remember { mutableStateOf(false) }
-            Frame(s, editing = moving, onKey = { ev ->
+            Frame(s, light = light, editing = moving, onKey = { ev ->
                 when {
                     ev.key == Key.Menu -> { if (ev.type == KeyEventType.KeyDown) onApp(e); true }
                     !moving -> false
@@ -621,30 +622,31 @@ private fun RowView(row: SRow, s: Float, app: GlassApp, onApp: (AppEntry) -> Uni
                     else -> false
                 }
             }, onFocus = { if (!it) moving = false }, onClick = { moving = !moving }, onLong = { onApp(e) }) { f ->
-                Box(Modifier.size((34 * s).dp).clip(RoundedCornerShape((8 * s).dp)).background(Color.White.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) {
+                Box(Modifier.size((34 * s).dp).clip(RoundedCornerShape((8 * s).dp)).background(if (light) Color.Black.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) {
                     art?.let { Image(it, null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding((3 * s).dp)) }
                 }
                 Spacer(Modifier.width((10 * s).dp))
-                Label(e.label, e.pkg, s, Modifier.weight(1f))
+                Label(e.label, e.pkg, s, Modifier.weight(1f), ink = ink, soft = soft)
                 val flags = listOfNotNull(if (hidden) "Hidden" else null, if (app.icons.has(e.pkg)) "Custom icon" else null).joinToString(" · ")
-                if (flags.isNotEmpty()) Text(tr(flags), color = Color(0xFFB9ABFF), fontSize = (11.5f * s).sp)
-                Text(tr(if (moving) "  ◀ ▶ · OK" else ""), color = Color(0xFFB9ABFF), fontSize = (12 * s).sp)
+                if (flags.isNotEmpty()) Text(tr(flags), color = if (light) Color(0xFF5B3DE6) else Color(0xFFB9ABFF), fontSize = (11.5f * s).sp)
+                Text(tr(if (moving) "  ◀ ▶ · OK" else ""), color = if (light) Color(0xFF5B3DE6) else Color(0xFFB9ABFF), fontSize = (12 * s).sp)
             }
         }
     }
 }
 
 @Composable
-private fun Label(title: String, desc: String, s: Float, modifier: Modifier) {
+private fun Label(title: String, desc: String, s: Float, modifier: Modifier, ink: Color = Color.White, soft: Color = Color.White.copy(alpha = 0.5f)) {
     Column(modifier) {
-        Text(tr(title), color = Color.White, fontSize = (14 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (desc.isNotBlank()) Text(tr(desc), color = Color.White.copy(alpha = 0.5f), fontSize = (10.5f * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(tr(title), color = ink, fontSize = (14 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (desc.isNotBlank()) Text(tr(desc), color = soft, fontSize = (10.5f * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
 private fun Frame(
     s: Float,
+    light: Boolean = false,
     onKey: ((androidx.compose.ui.input.key.KeyEvent) -> Boolean)? = null,
     onClick: () -> Unit,
     onLong: (() -> Unit)? = null,
@@ -658,9 +660,9 @@ private fun Frame(
             .onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }
             .clip(RoundedCornerShape((14 * s).dp))
             .background(when {
-                editing -> Color(0xFF7B61FF).copy(alpha = 0.34f)
-                focused -> Color.White.copy(alpha = 0.26f)
-                else -> Color.White.copy(alpha = 0.06f)
+                editing -> Color(0xFF7B61FF).copy(alpha = if (light) 0.25f else 0.34f)
+                focused -> if (light) Color.Black.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.26f)
+                else -> if (light) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.06f)
             })
             .tvPress(onLong = onLong, onKey = onKey, onClick = onClick)
             .padding(horizontal = (14 * s).dp, vertical = (9 * s).dp),
@@ -670,7 +672,16 @@ private fun Frame(
 
 /** Version, updates from GitHub, the project page as a QR code, credits and the last crash (if any). */
 @Composable
-private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data.AppEntry) -> Unit) {
+private fun AboutPane(
+    app: GlassApp,
+    s: Float,
+    light: Boolean,
+    ink: Color,
+    soft: Color,
+    onExport: () -> Unit,
+    onRestore: () -> Unit,
+    onApp: (com.glasslauncher.tv.data.AppEntry) -> Unit,
+) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -682,8 +693,8 @@ private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(qr, "GitHub", Modifier.size((150 * s).dp).clip(RoundedCornerShape((12 * s).dp)))
             Spacer(Modifier.height((6 * s).dp))
-            Text(tr("github.com/" + com.glasslauncher.tv.data.Updater.REPO), color = Color.White.copy(alpha = 0.75f), fontSize = (9.5f * s).sp)
-            Text(tr("Scan with your phone"), color = Color.White.copy(alpha = 0.5f), fontSize = (9 * s).sp)
+            Text(tr("github.com/" + com.glasslauncher.tv.data.Updater.REPO), color = soft, fontSize = (9.5f * s).sp)
+            Text(tr("Scan with your phone"), color = soft.copy(alpha = 0.7f), fontSize = (9 * s).sp)
         }
         val rows = buildList<SRow> {
             add(Note("Alfredo ${app.updater.current}"))
@@ -695,11 +706,15 @@ private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data
                 scope.launch(Dispatchers.IO) { toast(ctx, app.updater.check()) }
             })
             add(Note("A pill appears next to the clock when a new version is out."))
-            add(Note("Made by Mohammad (mrh12) · Fonts: Inter (SIL OFL) · Weather: Open-Meteo."))
+            add(Act("Export backup", "Saves settings, dock and custom media to Downloads", "Export", onClick = onExport))
+            add(Act("Restore backup", "Restores settings from alfredo_backup.zip in Downloads", "Restore", onClick = onRestore))
+            add(Note("Backup files are saved as ZIP in Downloads. Copy them to a computer or flash drive before reinstalling."))
+            add(Note("made by crius (owergungor)"))
+            add(Note("Fonts: Inter (SIL OFL) · Weather: Open-Meteo"))
             if (crash.isNotBlank()) add(Act("Last crash", crash.take(120), "Clear") { java.io.File(ctx.filesDir, "last-crash.txt").delete(); toast(ctx, "Cleared") })
         }
         LazyColumn(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy((4 * s).dp)) {
-            items(rows.size) { i -> RowView(rows[i], s, app, onApp = onApp) }
+            items(rows.size) { i -> RowView(rows[i], s, app, onApp = onApp, light = light, ink = ink, soft = soft) }
         }
     }
 }

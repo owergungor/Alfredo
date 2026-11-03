@@ -29,6 +29,7 @@ internal fun GlassClockCanvas(
     scale: Float,
     fontChoice: String,
     showDate: Boolean,
+    clockTheme: String = "clear",
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -79,27 +80,62 @@ internal fun GlassClockCanvas(
             paint.alpha = 255
             canvas.drawBitmap(image, null, dst, paint)
         }
-        // Frosted-glass milkiness is subtle so the wallpaper remains visible in each digit.
-        paint.shader = null
-        paint.style = NativePaint.Style.FILL
-        paint.color = android.graphics.Color.argb(34, 235, 246, 255)
-        canvas.drawRect(0f, 0f, size.width, size.height, paint)
-        paint.color = android.graphics.Color.WHITE
-        paint.shader = LinearGradient(0f, topPx, size.width, baseline + fontPx * 0.25f,
-            intArrayOf(0x66FFFFFF, 0x08FFFFFF, 0x00FFFFFF, 0x42FFFFFF),
-            floatArrayOf(0f, 0.34f, 0.68f, 1f), Shader.TileMode.CLAMP)
-        canvas.drawRect(0f, 0f, size.width, size.height, paint)
-        canvas.restoreToCount(save)
+        if (clockTheme == "bow") {
+            // White theme: crisp dark ink numerals with subtle sheen for readability
+            paint.shader = null
+            paint.style = NativePaint.Style.FILL
+            paint.color = android.graphics.Color.argb(220, 20, 20, 26)
+            canvas.drawRect(0f, 0f, size.width, size.height, paint)
+            paint.color = android.graphics.Color.WHITE
+            paint.shader = LinearGradient(0f, topPx, size.width, baseline + fontPx * 0.25f,
+                intArrayOf(0x33FFFFFF, 0x08FFFFFF, 0x00FFFFFF, 0x22FFFFFF),
+                floatArrayOf(0f, 0.34f, 0.68f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, size.width, size.height, paint)
+            canvas.restoreToCount(save)
 
-        // Fine luminous edge, not a solid gray outline.
-        paint.shader = null
-        paint.color = android.graphics.Color.argb(150, 248, 252, 255)
-        paint.style = NativePaint.Style.STROKE
-        paint.strokeWidth = with(density) { (0.8f * scale).dp.toPx() }
-        paint.strokeJoin = NativePaint.Join.ROUND
-        canvas.drawPath(glyphPath, paint)
-        paint.style = NativePaint.Style.FILL
-        paint.color = android.graphics.Color.argb(24, 255, 255, 255)
-        canvas.drawPath(glyphPath, paint)
+            paint.shader = null
+            paint.color = android.graphics.Color.argb(160, 255, 255, 255)
+            paint.style = NativePaint.Style.STROKE
+            paint.strokeWidth = with(density) { (0.9f * scale).dp.toPx() }
+            paint.strokeJoin = NativePaint.Join.ROUND
+            canvas.drawPath(glyphPath, paint)
+        } else if (clockTheme == "amoled") {
+            // AMOLED black theme: pure black fill with crisp luminous white border
+            paint.shader = null
+            paint.style = NativePaint.Style.FILL
+            paint.color = android.graphics.Color.argb(240, 8, 8, 10)
+            canvas.drawRect(0f, 0f, size.width, size.height, paint)
+            canvas.restoreToCount(save)
+
+            paint.shader = null
+            paint.color = android.graphics.Color.argb(210, 255, 255, 255)
+            paint.style = NativePaint.Style.STROKE
+            paint.strokeWidth = with(density) { (1.0f * scale).dp.toPx() }
+            paint.strokeJoin = NativePaint.Join.ROUND
+            canvas.drawPath(glyphPath, paint)
+        } else {
+            // Frosted-glass milkiness is subtle so the wallpaper remains visible in each digit.
+            paint.shader = null
+            paint.style = NativePaint.Style.FILL
+            paint.color = if (clockTheme == "liquid") android.graphics.Color.argb(70, 10, 10, 15) else android.graphics.Color.argb(34, 235, 246, 255)
+            canvas.drawRect(0f, 0f, size.width, size.height, paint)
+            paint.color = android.graphics.Color.WHITE
+            paint.shader = LinearGradient(0f, topPx, size.width, baseline + fontPx * 0.25f,
+                intArrayOf(0x66FFFFFF, 0x08FFFFFF, 0x00FFFFFF, 0x42FFFFFF),
+                floatArrayOf(0f, 0.34f, 0.68f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, size.width, size.height, paint)
+            canvas.restoreToCount(save)
+
+            // Fine luminous edge, not a solid gray outline.
+            paint.shader = null
+            paint.color = android.graphics.Color.argb(150, 248, 252, 255)
+            paint.style = NativePaint.Style.STROKE
+            paint.strokeWidth = with(density) { (0.8f * scale).dp.toPx() }
+            paint.strokeJoin = NativePaint.Join.ROUND
+            canvas.drawPath(glyphPath, paint)
+            paint.style = NativePaint.Style.FILL
+            paint.color = android.graphics.Color.argb(24, 255, 255, 255)
+            canvas.drawPath(glyphPath, paint)
+        }
     }
 }

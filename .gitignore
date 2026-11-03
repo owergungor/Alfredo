@@ -1,17 +1,32 @@
+# Gradle & Build Outputs
 build/
 .gradle/
 .kotlin/
 local.properties
 *.apk
-.DS_Store
+*.aab
 releases/
+
+# Antigravity & Agent Artifacts
+*ANTIGRAVITY*
+.antigravity/
+
+# IDE & OS
 .idea/
 *.iml
+.DS_Store
+*.swp
+*~
+
+# Backups & Temporary Files
 *.bak
 *.rebrand_bak
 *.phase5d_bak
 _rebrand_bak/
 _backups/
+*.log
+
+# Signing Secrets & Integrity Hashes
 *.jks
 *.keystore
 signing.properties

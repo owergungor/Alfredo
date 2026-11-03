@@ -28,8 +28,8 @@ android {
         applicationId = "com.glasslauncher.tv.devtest"
         minSdk = 26
         targetSdk = 35
-        versionCode = 31
-        versionName = "1.0"
+        versionCode = 32
+        versionName = "1.1"
         val traktClientId = System.getenv("TRAKT_CLIENT_ID") ?: signingProps.getProperty("TRAKT_CLIENT_ID", "")
         buildConfigField("String", "TRAKT_CLIENT_ID", "\"$traktClientId\"")
     }

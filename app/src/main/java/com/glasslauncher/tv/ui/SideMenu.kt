@@ -58,8 +58,8 @@ import kotlin.math.roundToInt
 private val EASE = CubicBezierEasing(0.22f, 0f, 0f, 1f)
 
 private val THEMES = listOf(
-    "bow" to "Black on white", "amoled" to "Black AMOLED", "liquid" to "Liquid",
-    "clear" to "Clear", "water_still" to "Glass still", "water" to "Glass is glass",
+    "clear" to "White Glass", "liquid" to "Black Glass",
+    "bow" to "White", "amoled" to "Black",
 )
 
 /**

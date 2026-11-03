@@ -150,26 +150,56 @@ class Settings(private val ctx: Context) {
     var menuThemes: Boolean get() = b("menuThemes", true); set(v) = putB("menuThemes", v)
     var menuBackground: Boolean get() = b("menuBackground", true); set(v) = putB("menuBackground", v)
     /** Look of the menu: same choices as the dock (set by Themes). */
-    var menuStyle: String get() = s("menuStyle", "water_still"); set(v) = putS("menuStyle", v)
+    var menuStyle: String get() = s("menuStyle", "clear"); set(v) = putS("menuStyle", v)
     /** The + button next to Play (save to Library). */
     var heroPlus: Boolean get() = b("heroPlus", true); set(v) = putB("heroPlus", v)
     var libraryTrakt: Boolean get() = b("libraryTrakt", true); set(v) = putB("libraryTrakt", v)
     /** Whether to show the Trakt watchlist in the Library. */
     var libraryToTrakt: Boolean get() = b("libraryToTrakt", true); set(v) = putB("libraryToTrakt", v)
     var libraryTitles: Boolean get() = b("libraryTitles", true); set(v) = putB("libraryTitles", v)
-    /** bow (black on white) | amoled | liquid | clear | water_still | water */
-    var theme: String get() = s("theme", "water_still"); set(v) = putS("theme", v)
+    /** clear (Beyaz Cam) | liquid (Siyah Cam) | bow (Beyaz) | amoled (Siyah) */
+    var theme: String get() = s("theme", "clear"); set(v) = putS("theme", v)
 
-    /** One choice for the dock, the icons and the menu (Settings keep their own look). Black ones keep the dock clear (matte). */
+    /** Synchronizes dock, tiles, menu, settings panels and clock across the whole app. */
     fun applyTheme(t: String) {
-        when (t) {
-            "bow" -> { dockStyle = "clear"; tileStyle = "bow"; menuStyle = "bow" }
-            "amoled" -> { dockStyle = "clear"; tileStyle = "amoled"; menuStyle = "amoled" }
-            else -> { dockStyle = t; tileStyle = t; menuStyle = t }
-        }
         theme = t
-        // The clock follows the global theme by default; the Clock style control can still override it later.
-        clockTheme = t
+        when (t) {
+            "bow" -> {
+                dockStyle = "bow"
+                tileStyle = "bow"
+                menuStyle = "bow"
+                panelStyle = "bow"
+                clockTheme = "bow"
+            }
+            "amoled" -> {
+                dockStyle = "amoled"
+                tileStyle = "amoled"
+                menuStyle = "amoled"
+                panelStyle = "amoled"
+                clockTheme = "amoled"
+            }
+            "clear" -> {
+                dockStyle = "clear"
+                tileStyle = "clear"
+                menuStyle = "clear"
+                panelStyle = "clear"
+                clockTheme = "clear"
+            }
+            "liquid" -> {
+                dockStyle = "liquid"
+                tileStyle = "liquid"
+                menuStyle = "liquid"
+                panelStyle = "liquid"
+                clockTheme = "liquid"
+            }
+            else -> {
+                dockStyle = t
+                tileStyle = t
+                menuStyle = t
+                panelStyle = t
+                clockTheme = t
+            }
+        }
     }
 
     /** Buttons under the title: apple (Play + round Next, like Apple TV) | play (Play only, when selected) | hidden */
@@ -201,12 +231,12 @@ class Settings(private val ctx: Context) {
     var cwProgress: Boolean get() = b("cwProgress", true); set(v) = putB("cwProgress", v)
     /** 0.6 .. 1.0 (1.0 = full width) */
     var dockScale: Float get() = f("dockScale", 1.0f); set(v) = putF("dockScale", v.coerceIn(0.6f, 1.0f))
-    /** Background of the dock and the Apps folder: liquid | clear | amoled | bow */
-    var dockStyle: String get() = s("dockStyle", "water_still"); set(v) = putS("dockStyle", v)
-    /** Background of settings and the icon picker: liquid | clear | amoled */
-    var panelStyle: String get() = s("panelStyle", "liquid"); set(v) = putS("panelStyle", v)
-    /** liquid | clear | amoled | bow (black on white) */
-    var tileStyle: String get() = s("tileStyle", "water_still"); set(v) = putS("tileStyle", v)
+    /** Background of the dock and the Apps folder: clear | liquid | amoled | bow */
+    var dockStyle: String get() = s("dockStyle", "clear"); set(v) = putS("dockStyle", v)
+    /** Background of settings and the icon picker: clear | liquid | amoled | bow */
+    var panelStyle: String get() = s("panelStyle", "clear"); set(v) = putS("panelStyle", v)
+    /** clear | liquid | amoled | bow */
+    var tileStyle: String get() = s("tileStyle", "clear"); set(v) = putS("tileStyle", v)
     /** How far the glass rim bends the background, dp. */
     var refraction: Int get() = i("refraction", 14); set(v) = putI("refraction", v.coerceIn(0, 40))
     var metaScale: Float get() = f("metaScale", 1.0f); set(v) = putF("metaScale", v.coerceIn(0.6f, 2.0f))
@@ -233,8 +263,8 @@ class Settings(private val ctx: Context) {
     var showClock: Boolean get() = b("showClock", true); set(v) = putB("showClock", v)
     /** Large liquid-glass clock centered behind the home carousel. */
     var largeCenterClock: Boolean get() = b("largeCenterClock", true); set(v) = putB("largeCenterClock", v)
-    /** Existing Glassio surface theme used by the large center clock. */
-    var clockTheme: String get() = s("clockTheme", "water_still"); set(v) = putS("clockTheme", v)
+    /** Theme used by the large center clock. */
+    var clockTheme: String get() = s("clockTheme", "clear"); set(v) = putS("clockTheme", v)
     /** Global UI typeface: apple = Inter (SF-style), system = Android default. Reads the old clockFont preference for migration. */
     var uiFont: String get() = s("uiFont", s("clockFont", "apple")); set(v) = putS("uiFont", if (v == "system") "system" else "apple")
     var clock24h: Boolean get() = b("clock24h", false); set(v) = putB("clock24h", v)

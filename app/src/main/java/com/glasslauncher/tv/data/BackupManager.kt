@@ -3,6 +3,7 @@ package com.glasslauncher.tv.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Environment
+import com.glasslauncher.tv.BuildConfig
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedOutputStream
@@ -97,8 +98,8 @@ object BackupManager {
                     put("app", BACKUP_APP_NAME)
                     put("version", CURRENT_BACKUP_VERSION)
                     put("timestamp", System.currentTimeMillis())
-                    put("versionCode", 31)
-                    put("versionName", "1.0")
+                    put("versionCode", BuildConfig.VERSION_CODE)
+                    put("versionName", BuildConfig.VERSION_NAME)
                     put("prefs", JSONArray(PREF_FILES))
                     put("icons_count", iconFiles.size)
                     put("backgrounds_count", bgFiles.size)
