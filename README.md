@@ -19,7 +19,6 @@
 <p align="center">
   <strong><a href="README.md">English</a></strong> •
   <strong><a href="README.tr.md">Türkçe</a></strong> •
-  <strong><a href="docs/README.ar.md">العربية</a></strong>
 </p>
 
 ---
